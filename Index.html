@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retro City Builder</title>
+    <style>
+        :root {
+            --pixel-size: 4px;
+            --grass-color: #7cfc00;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #87CEEB; /* Himmelblå */
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            cursor: pointer;
+        }
+
+        #city-map {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 40%;
+            background-color: #4da33d;
+            border-top: 4px solid #2d5a24;
+            display: flex;
+            flex-wrap: wrap;
+            align-content: flex-start;
+            padding: 20px;
+            box-sizing: border-box;
+            transition: height 0.5s ease;
+        }
+
+        /* UI Elementer */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 20px;
+            pointer-events: none;
+            display: flex;
+            justify-content: space-between;
+            z-index: 100;
+        }
+
+        .counter-box {
+            background: rgba(0, 0, 0, 0.7);
+            color: #ffd700;
+            padding: 10px 20px;
+            border: 4px solid #fff;
+            font-size: 24px;
+            font-weight: bold;
+            image-rendering: pixelated;
+        }
+
+        #shop {
+            pointer-events: auto;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border: 4px solid #fff;
+            max-height: 80vh;
+            overflow-y: auto;
+            width: 200px;
+        }
+
+        .shop-item {
+            margin-bottom: 10px;
+            padding: 5px;
+            border-bottom: 1px solid #555;
+            cursor: pointer;
+        }
+
+        .shop-item:hover {
+            background: #444;
+        }
+
+        .shop-item.disabled {
+            color: #888;
+            cursor: not-allowed;
+        }
+
+        /* Fysiske objekter */
+        .coin, .bill {
+            position: absolute;
+            z-index: 50;
+            pointer-events: none;
+            image-rendering: pixelated;
+            font-size: 20px;
+        }
+
+        /* By-objekter (Pikselgrafikk-stil) */
+        .building {
+            width: 50px;
+            height: 50px;
+            margin: 5px;
+            display: inline-block;
+            image-rendering: pixelated;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: bottom;
+            animation: popIn 0.3s ease-out;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0); }
+            80% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="ui-layer">
+        <div class="counter-box">
+            COINS: <span id="coin-count">0</span><br>
+            <small style="font-size: 14px;">KLIKK: <span id="per-click">5</span></small>
+        </div>
+        
+        <div id="shop">
+            <h3 style="margin-top:0">BUTIKK</h3>
+            <div id="shop-list"></div>
+        </div>
+    </div>
+
+    <div id="city-map"></div>
+</div>
+
+<script>
+    let coins = 0;
+    let clickCount = 0;
+    let coinsPerClick = 5;
+    let billValue = 10;
+    let totalSpent = 0;
+
+    const gameContainer = document.getElementById('game-container');
+    const coinDisplay = document.getElementById('coin-count');
+    const clickDisplay = document.getElementById('per-click');
+    const cityMap = document.getElementById('city-map');
+    const shopList = document.getElementById('shop-list');
+
+    const shopItems = [
+        { id: 'hage', name: 'Hage', cost: 10, bonus: 1, icon: '🌿', minSpent: 0 },
+        { id: 'tre', name: 'Tre', cost: 15, bonus: 1, icon: '🌳', minSpent: 0 },
+        { id: 'vei', name: 'Vei', cost: 20, bonus: 2, icon: '🛣️', minSpent: 0 },
+        { id: 'hundehus', name: 'Hundehus', cost: 30, bonus: 3, icon: '🏠', minSpent: 0 },
+        { id: 'bil', name: 'Bil', cost: 100, bonus: 5, icon: '🚗', minSpent: 0 },
+        { id: 'hus', name: 'Hus', cost: 200, bonus: 10, icon: '🏠', minSpent: 0 },
+        { id: 'skole', name: 'Skole', cost: 300, bonus: 15, icon: '🏫', minSpent: 400 },
+        { id: 'senter', name: 'Kjøpesenter', cost: 500, bonus: 20, icon: '🏢', minSpent: 400 }
+    ];
+
+    // Funksjon for å skape fallende penger
+    gameContainer.addEventListener('mousedown', (e) => {
+        if (e.target.closest('#shop')) return;
+
+        clickCount++;
+        
+        if (clickCount % 5 === 0) {
+            spawnMoney(e.clientX, '💵', billValue);
+        } else {
+            for (let i = 0; i < coinsPerClick; i++) {
+                setTimeout(() => spawnMoney(e.clientX, '🟡', 1), i * 50);
+            }
+        }
+    });
+
+    function spawnMoney(x, symbol, value) {
+        const element = document.createElement('div');
+        element.className = symbol === '💵' ? 'bill' : 'coin';
+        element.innerText = symbol;
+        
+        // Startposisjon
+        let posX = x + (Math.random() * 40 - 20);
+        let posY = -20;
+        let velY = 0;
+        let velX = (Math.random() - 0.5) * 5;
+        const gravity = 0.5;
+        const bounce = -0.4;
+        const ground = window.innerHeight - (Math.random() * 50 + 20);
+
+        element.style.left = posX + 'px';
+        gameContainer.appendChild(element);
+
+        function updatePhysics() {
+            velY += gravity;
+            posY += velY;
+            posX += velX;
+
+            if (posY >= ground) {
+                posY = ground;
+                velY *= bounce;
+                velX *= 0.8; // Friksjon mot bakken
+                
+                // Legg til verdi når den treffer bakken første gang
+                if (element.dataset.counted !== "true") {
+                    coins += value;
+                    updateUI();
+                    element.dataset.counted = "true";
+                    // Forsvinn etter en stund
+                    setTimeout(() => element.remove(), 2000);
+                }
+            }
+
+            element.style.top = posY + 'px';
+            element.style.left = posX + 'px';
+
+            if (posY < window.innerHeight + 100) {
+                requestAnimationFrame(updatePhysics);
+            }
+        }
+        requestAnimationFrame(updatePhysics);
+    }
+
+    function updateUI() {
+        coinDisplay.innerText = Math.floor(coins);
+        clickDisplay.innerText = coinsPerClick;
+        renderShop();
+        
+        // Kartet vokser basert på totalt brukt
+        const mapHeight = Math.min(40 + (totalSpent / 50), 80);
+        cityMap.style.height = mapHeight + '%';
+    }
+
+    function renderShop() {
+        shopList.innerHTML = '';
+        shopItems.forEach(item => {
+            if (totalSpent >= item.minSpent) {
+                const div = document.createElement('div');
+                div.className = `shop-item ${coins < item.cost ? 'disabled' : ''}`;
+                div.innerHTML = `${item.icon} ${item.name}<br><small>Pris: ${item.cost} | +${item.bonus} klikk</small>`;
+                div.onclick = () => buyItem(item);
+                shopList.appendChild(div);
+            }
+        });
+    }
+
+    function buyItem(item) {
+        if (coins >= item.cost) {
+            coins -= item.cost;
+            totalSpent += item.cost;
+            coinsPerClick += item.bonus;
+            billValue += 2;
+
+            // Legg til i byen
+            const building = document.createElement('div');
+            building.className = 'building';
+            building.innerHTML = `<span style="font-size: 40px">${item.icon}</span>`;
+            cityMap.appendChild(building);
+
+            updateUI();
+        }
+    }
+
+    // Start spill
+    updateUI();
+</script>
+
+</body>
+</html>
