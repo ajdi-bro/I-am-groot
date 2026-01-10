@@ -1,274 +1,297 @@
-<!DOCTYPE html>
+    <!DOCTYPE html>
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Retro City Builder</title>
+    <title>Pixel City Architect</title>
     <style>
+        /* 8-BIT STIL DEFINISJONER */
         :root {
-            --pixel-size: 4px;
-            --grass-color: #7cfc00;
+            --pixel: 4px;
+            --grid-size: 100px;
+            --bg-color: #3e8948; /* Mørkegrønn plen */
         }
 
         body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
+            background: #222;
             font-family: 'Courier New', Courier, monospace;
-            background-color: #87CEEB; /* Himmelblå */
+            overflow: hidden;
+            color: white;
+            image-rendering: pixelated;
         }
 
         #game-container {
             position: relative;
             width: 100vw;
             height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             cursor: pointer;
         }
 
-        #city-map {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 40%;
-            background-color: #4da33d;
-            border-top: 4px solid #2d5a24;
-            display: flex;
-            flex-wrap: wrap;
-            align-content: flex-start;
-            padding: 20px;
-            box-sizing: border-box;
-            transition: height 0.5s ease;
+        /* KARTET OVENFRA */
+        #city-grid {
+            position: relative;
+            display: grid;
+            gap: 4px;
+            padding: 10px;
+            background: #333;
+            border: 8px solid #111;
+            transition: all 0.5s ease;
         }
 
-        /* UI Elementer */
-        #ui-layer {
+        .slot {
+            width: var(--grid-size);
+            height: var(--grid-size);
+            background: var(--bg-color);
+            position: relative;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+
+        /* PIXEL ART ELEMENTER (TEGNET MED CSS) */
+        .asset {
             position: absolute;
-            top: 0;
-            left: 0;
             width: 100%;
-            padding: 20px;
-            pointer-events: none;
-            display: flex;
-            justify-content: space-between;
+            height: 100%;
+            animation: buildScale 0.2s steps(4);
+        }
+
+        .house { background: #8b4513; border: 15px solid #a0522d; box-sizing: border-box; } /* Tak sett ovenfra */
+        .road { background: #444; border: 2px dashed #666; }
+        .garden { background: #a2d149; border: 5px solid #8ebf37; }
+        .tree { background: #2d5a24; border-radius: 50%; width: 40px; height: 40px; margin: 30px; border: 4px solid #1e3d18; }
+        .school { background: #b22222; border: 10px double #fff; }
+        .mall { background: #555; border: 15px solid #777; }
+
+        /* UI - MINECRAFT STIL */
+        .ui-box {
+            position: absolute;
+            background: #c6c6c6;
+            border: 4px solid #ffffff;
+            border-right-color: #555;
+            border-bottom-color: #555;
+            padding: 10px;
+            color: #333;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
             z-index: 100;
         }
 
-        .counter-box {
-            background: rgba(0, 0, 0, 0.7);
-            color: #ffd700;
-            padding: 10px 20px;
-            border: 4px solid #fff;
+        #money-display {
+            top: 20px;
+            left: 20px;
             font-size: 24px;
             font-weight: bold;
-            image-rendering: pixelated;
         }
 
         #shop {
-            pointer-events: auto;
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 15px;
-            border: 4px solid #fff;
+            top: 20px;
+            right: 20px;
+            width: 250px;
             max-height: 80vh;
             overflow-y: auto;
-            width: 200px;
         }
 
-        .shop-item {
-            margin-bottom: 10px;
-            padding: 5px;
-            border-bottom: 1px solid #555;
+        .shop-btn {
+            background: #8b8b8b;
+            border: 2px solid #ffffff;
+            border-right-color: #555;
+            border-bottom-color: #555;
+            margin: 5px 0;
+            padding: 8px;
             cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
         }
 
-        .shop-item:hover {
-            background: #444;
-        }
+        .shop-btn:hover:not(.disabled) { background: #9b9b9b; }
+        .shop-btn.disabled { opacity: 0.5; cursor: not-allowed; background: #555; color: #888; }
 
-        .shop-item.disabled {
-            color: #888;
-            cursor: not-allowed;
-        }
-
-        /* Fysiske objekter */
-        .coin, .bill {
+        /* PENGE ANIMASJON */
+        .money-fx {
             position: absolute;
-            z-index: 50;
+            width: 24px; height: 24px;
+            background: #ffd700;
+            border: 3px solid #b8860b;
+            border-radius: 50%;
             pointer-events: none;
-            image-rendering: pixelated;
-            font-size: 20px;
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
         }
 
-        /* By-objekter (Pikselgrafikk-stil) */
-        .building {
-            width: 50px;
-            height: 50px;
-            margin: 5px;
-            display: inline-block;
-            image-rendering: pixelated;
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: bottom;
-            animation: popIn 0.3s ease-out;
+        @keyframes fall {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(400px) rotate(360deg); opacity: 0; }
         }
 
-        @keyframes popIn {
-            0% { transform: scale(0); }
-            80% { transform: scale(1.2); }
-            100% { transform: scale(1); }
+        @keyframes buildScale {
+            from { transform: scale(0); }
+            to { transform: scale(1); }
         }
     </style>
 </head>
 <body>
 
 <div id="game-container">
-    <div id="ui-layer">
-        <div class="counter-box">
-            COINS: <span id="coin-count">0</span><br>
-            <small style="font-size: 14px;">KLIKK: <span id="per-click">5</span></small>
-        </div>
-        
-        <div id="shop">
-            <h3 style="margin-top:0">BUTIKK</h3>
-            <div id="shop-list"></div>
-        </div>
+    <div id="money-display" class="ui-box">
+        COINS: <span id="coins">0</span>
     </div>
 
-    <div id="city-map"></div>
+    <div id="shop" class="ui-box">
+        <div style="text-align:center; font-weight:bold; border-bottom:2px solid #555; margin-bottom:5px;">BUTIKK</div>
+        <div id="item-list"></div>
+    </div>
+
+    <div id="city-grid"></div>
 </div>
 
 <script>
-    let coins = 0;
-    let clickCount = 0;
-    let coinsPerClick = 5;
-    let billValue = 10;
-    let totalSpent = 0;
+    let state = {
+        coins: 0,
+        totalSpent: 0,
+        clickCount: 0,
+        coinsPerClick: 5,
+        billValue: 10,
+        unlockedTiers: 1,
+        builtCount: 0
+    };
 
-    const gameContainer = document.getElementById('game-container');
-    const coinDisplay = document.getElementById('coin-count');
-    const clickDisplay = document.getElementById('per-click');
-    const cityMap = document.getElementById('city-map');
-    const shopList = document.getElementById('shop-list');
-
-    const shopItems = [
-        { id: 'hage', name: 'Hage', cost: 10, bonus: 1, icon: '🌿', minSpent: 0 },
-        { id: 'tre', name: 'Tre', cost: 15, bonus: 1, icon: '🌳', minSpent: 0 },
-        { id: 'vei', name: 'Vei', cost: 20, bonus: 2, icon: '🛣️', minSpent: 0 },
-        { id: 'hundehus', name: 'Hundehus', cost: 30, bonus: 3, icon: '🏠', minSpent: 0 },
-        { id: 'bil', name: 'Bil', cost: 100, bonus: 5, icon: '🚗', minSpent: 0 },
-        { id: 'hus', name: 'Hus', cost: 200, bonus: 10, icon: '🏠', minSpent: 0 },
-        { id: 'skole', name: 'Skole', cost: 300, bonus: 15, icon: '🏫', minSpent: 400 },
-        { id: 'senter', name: 'Kjøpesenter', cost: 500, bonus: 20, icon: '🏢', minSpent: 400 }
+    // Definisjon av kart-layout (Pre-definert rekkefølge ting bygges på)
+    // Vi fyller kartet innenfra og ut
+    const buildOrder = [
+        { type: 'road', pos: [1,1] }, { type: 'house', pos: [0,0] }, { type: 'garden', pos: [0,1] }, { type: 'tree', pos: [1,0] }, // Start 2x2
+        { type: 'road', pos: [1,2] }, { type: 'road', pos: [2,1] }, { type: 'house', pos: [2,2] }, { type: 'tree', pos: [2,0] }, // Utvidelse 1
+        { type: 'road', pos: [0,2] }, { type: 'garden', pos: [1,2] }, { type: 'school', pos: [2,3] } // Osv.
     ];
 
-    // Funksjon for å skape fallende penger
-    gameContainer.addEventListener('mousedown', (e) => {
-        if (e.target.closest('#shop')) return;
+    const catalog = {
+        hage: { name: "Hage", cost: 10, bonus: 1, class: 'garden', limit: 10 },
+        tre: { name: "Tre", cost: 15, bonus: 1, class: 'tree', limit: 15 },
+        vei: { name: "Vei", cost: 20, bonus: 2, class: 'road', limit: 20 },
+        hus: { name: "Hus", cost: 200, bonus: 10, class: 'house', limit: 8 },
+        skole: { name: "Skole", cost: 300, bonus: 15, class: 'school', unlock: 400, limit: 2 },
+        senter: { name: "Senter", cost: 500, bonus: 20, class: 'mall', unlock: 800, limit: 1 },
+        sykehus: { name: "Sykehus", cost: 1200, bonus: 50, class: 'hospital', unlock: 2000, limit: 1 }
+    };
 
-        clickCount++;
-        
-        if (clickCount % 5 === 0) {
-            spawnMoney(e.clientX, '💵', billValue);
-        } else {
-            for (let i = 0; i < coinsPerClick; i++) {
-                setTimeout(() => spawnMoney(e.clientX, '🟡', 1), i * 50);
-            }
+    const inventory = { hage:0, tre:0, vei:0, hus:0, skole:0, senter:0, sykehus:0 };
+
+    function initGrid() {
+        const grid = document.getElementById('city-grid');
+        grid.style.gridTemplateColumns = `repeat(2, var(--grid-size))`;
+        for(let i=0; i<4; i++) {
+            let slot = document.createElement('div');
+            slot.className = 'slot';
+            slot.id = `slot-${i}`;
+            grid.appendChild(slot);
         }
+    }
+
+    // Klikk-håndtering med "My Code Arcade" stil animasjon
+    document.getElementById('game-container').addEventListener('mousedown', (e) => {
+        if(e.target.closest('.ui-box')) return;
+        
+        state.clickCount++;
+        let isBill = state.clickCount % 5 === 0;
+        let amount = isBill ? 1 : 5;
+        let val = isBill ? state.billValue : 1;
+
+        for(let i=0; i<amount; i++) {
+            createMoneyAnim(e.clientX, e.clientY, isBill);
+        }
+        
+        state.coins += (amount * val);
+        updateUI();
     });
 
-    function spawnMoney(x, symbol, value) {
-        const element = document.createElement('div');
-        element.className = symbol === '💵' ? 'bill' : 'coin';
-        element.innerText = symbol;
-        
-        // Startposisjon
-        let posX = x + (Math.random() * 40 - 20);
-        let posY = -20;
-        let velY = 0;
-        let velX = (Math.random() - 0.5) * 5;
-        const gravity = 0.5;
-        const bounce = -0.4;
-        const ground = window.innerHeight - (Math.random() * 50 + 20);
-
-        element.style.left = posX + 'px';
-        gameContainer.appendChild(element);
-
-        function updatePhysics() {
-            velY += gravity;
-            posY += velY;
-            posX += velX;
-
-            if (posY >= ground) {
-                posY = ground;
-                velY *= bounce;
-                velX *= 0.8; // Friksjon mot bakken
-                
-                // Legg til verdi når den treffer bakken første gang
-                if (element.dataset.counted !== "true") {
-                    coins += value;
-                    updateUI();
-                    element.dataset.counted = "true";
-                    // Forsvinn etter en stund
-                    setTimeout(() => element.remove(), 2000);
-                }
-            }
-
-            element.style.top = posY + 'px';
-            element.style.left = posX + 'px';
-
-            if (posY < window.innerHeight + 100) {
-                requestAnimationFrame(updatePhysics);
-            }
+    function createMoneyAnim(x, y, isBill) {
+        const m = document.createElement('div');
+        m.className = 'money-fx';
+        if(isBill) {
+            m.style.background = '#85bb65';
+            m.style.width = '40px';
+            m.style.borderRadius = '2px';
+            m.innerText = state.billValue;
         }
-        requestAnimationFrame(updatePhysics);
+        m.style.left = (x + (Math.random()*40-20)) + 'px';
+        m.style.top = y + 'px';
+        m.style.animation = `fall ${1 + Math.random()}s Math.ease-in forwards`;
+        
+        document.body.appendChild(m);
+        setTimeout(() => m.remove(), 2000);
     }
 
     function updateUI() {
-        coinDisplay.innerText = Math.floor(coins);
-        clickDisplay.innerText = coinsPerClick;
-        renderShop();
-        
-        // Kartet vokser basert på totalt brukt
-        const mapHeight = Math.min(40 + (totalSpent / 50), 80);
-        cityMap.style.height = mapHeight + '%';
-    }
+        document.getElementById('coins').innerText = Math.floor(state.coins);
+        const list = document.getElementById('item-list');
+        list.innerHTML = '';
 
-    function renderShop() {
-        shopList.innerHTML = '';
-        shopItems.forEach(item => {
-            if (totalSpent >= item.minSpent) {
-                const div = document.createElement('div');
-                div.className = `shop-item ${coins < item.cost ? 'disabled' : ''}`;
-                div.innerHTML = `${item.icon} ${item.name}<br><small>Pris: ${item.cost} | +${item.bonus} klikk</small>`;
-                div.onclick = () => buyItem(item);
-                shopList.appendChild(div);
+        for(let key in catalog) {
+            const item = catalog[key];
+            const unlocked = !item.unlock || state.totalSpent >= item.unlock;
+            const soldOut = inventory[key] >= item.limit;
+
+            if(unlocked) {
+                const btn = document.createElement('div');
+                btn.className = `shop-btn ${state.coins < item.cost || soldOut ? 'disabled' : ''}`;
+                btn.innerHTML = `<span>${item.name} ${soldOut ? '(UTSOLGT)' : ''}</span> <span>${item.cost}c</span>`;
+                if(!soldOut) btn.onclick = () => buyItem(key);
+                list.appendChild(btn);
             }
-        });
+        }
+        
+        // Utvid grid hvis nødvendig
+        if(state.builtCount >= 4 && state.unlockedTiers === 1) expandGrid(4);
     }
 
-    function buyItem(item) {
-        if (coins >= item.cost) {
-            coins -= item.cost;
-            totalSpent += item.cost;
-            coinsPerClick += item.bonus;
-            billValue += 2;
+    function buyItem(key) {
+        const item = catalog[key];
+        if(state.coins >= item.cost) {
+            state.coins -= item.cost;
+            state.totalSpent += item.cost;
+            inventory[key]++;
+            state.builtCount++;
+            
+            // Øk priser og verdier
+            state.coinsPerClick += item.bonus;
+            state.billValue += 2;
+            item.cost = Math.floor(item.cost * 1.2); 
 
-            // Legg til i byen
-            const building = document.createElement('div');
-            building.className = 'building';
-            building.innerHTML = `<span style="font-size: 40px">${item.icon}</span>`;
-            cityMap.appendChild(building);
-
+            placeInGrid(item.class);
             updateUI();
         }
     }
 
-    // Start spill
+    function placeInGrid(className) {
+        const slots = document.querySelectorAll('.slot:not(.occupied)');
+        if(slots.length > 0) {
+            const target = slots[0];
+            const asset = document.createElement('div');
+            asset.className = `asset ${className}`;
+            target.appendChild(asset);
+            target.classList.add('occupied');
+        }
+    }
+
+    function expandGrid(size) {
+        state.unlockedTiers++;
+        const grid = document.getElementById('city-grid');
+        grid.style.gridTemplateColumns = `repeat(${Math.sqrt(grid.children.length + size)}, var(--grid-size))`;
+        for(let i=0; i<size; i++) {
+            let slot = document.createElement('div');
+            slot.className = 'slot';
+            grid.appendChild(slot);
+        }
+    }
+
+    initGrid();
     updateUI();
 </script>
-
 </body>
 </html>
