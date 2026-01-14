@@ -2,7 +2,7 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Retro City Architect - Master Build</title>
+    <title>Retro City Architect - Smooth Build</title>
     <style>
         :root {
             --ui-bg: #c6c6c6;
@@ -111,9 +111,9 @@
         coins: 0,
         totalSpent: 0,
         clickCount: 0,
-        gridSize: 2, // Starter 2x2
+        gridSize: 2,
         billValue: 10,
-        builtAssets: [] // Lagrer hva som er bygget
+        builtCount: 0
     };
 
     const buildingTypes = [
@@ -127,22 +127,19 @@
 
     const container = document.getElementById('city-container');
 
-    function renderGrid() {
-        container.innerHTML = '';
+    // Initialiserer rutenettet første gang uten å tømme det senere
+    function createInitialGrid() {
         container.style.gridTemplateColumns = `repeat(${state.gridSize}, var(--block-size))`;
-        
-        let totalSlots = state.gridSize * state.gridSize;
-        for(let i=0; i < totalSlots; i++) {
-            let slot = document.createElement('div');
-            slot.className = 'slot';
-            if(state.builtAssets[i]) {
-                let asset = document.createElement('div');
-                asset.className = `asset ${state.builtAssets[i]}`;
-                slot.appendChild(asset);
-            }
-            container.appendChild(slot);
+        for(let i=0; i < state.gridSize * state.gridSize; i++) {
+            addSlot();
         }
         adjustZoom();
+    }
+
+    function addSlot() {
+        let slot = document.createElement('div');
+        slot.className = 'slot';
+        container.appendChild(slot);
     }
 
     function adjustZoom() {
@@ -152,12 +149,12 @@
         const gridPx = state.gridSize * 82;
         
         let scale = Math.min(availableW / gridPx, availableH / gridPx);
-        if(scale > 1) scale = 1; // Ikke zoom inn mer enn naturlig størrelse
+        if(scale > 1) scale = 1;
         
         container.style.transform = `scale(${scale})`;
     }
 
-    // PENGE-FYSIKK (BEHOLDT FRA DEN BRA VERSJONEN)
+    // Penge-fysikk
     document.body.addEventListener('mousedown', (e) => {
         if(e.target.closest('.ui-panel')) return;
         
@@ -238,23 +235,57 @@
     }
 
     function buyBuilding(b) {
-        state.coins -= b.cost;
-        state.totalSpent += b.cost;
-        state.builtAssets.push(b.class);
-        state.billValue += 2;
-        b.cost = Math.floor(b.cost * 1.4);
-
-        // Sjekk om vi må utvide kvadratet
-        if(state.builtAssets.length > (state.gridSize * state.gridSize)) {
-            state.gridSize += 2;
+        const slots = document.querySelectorAll('.slot');
+        // Finn den neste ledige slokken (den som ikke har en .asset)
+        let targetSlot = null;
+        for (let slot of slots) {
+            if (!slot.querySelector('.asset')) {
+                targetSlot = slot;
+                break;
+            }
         }
 
-        renderGrid();
-        updateUI();
+        if (targetSlot) {
+            state.coins -= b.cost;
+            state.totalSpent += b.cost;
+            state.builtCount++;
+            state.billValue += 2;
+            b.cost = Math.floor(b.cost * 1.4);
+
+            // LEGG TIL KUN DEN NYE BLOKKA UTEN Å RELOADE ALT
+            let asset = document.createElement('div');
+            asset.className = `asset ${b.class}`;
+            targetSlot.appendChild(asset);
+
+            // Sjekk om vi har fylt opp kvadratet og må legge til nye TOMME blokker
+            if(state.builtCount === state.gridSize * state.gridSize) {
+                expandGrid();
+            }
+
+            updateUI();
+        }
+    }
+
+    function expandGrid() {
+        const oldSize = state.gridSize;
+        state.gridSize += 2;
+        const newTotal = state.gridSize * state.gridSize;
+        const currentTotal = oldSize * oldSize;
+        
+        // Oppdater grid-kolonner
+        container.style.gridTemplateColumns = `repeat(${state.gridSize}, var(--block-size))`;
+        
+        // Legg til de nye tomme blokkene
+        for (let i = 0; i < (newTotal - currentTotal); i++) {
+            addSlot();
+        }
+        
+        // Zoom ut for å få plass til de nye blokkene
+        adjustZoom();
     }
 
     window.onresize = adjustZoom;
-    renderGrid();
+    createInitialGrid();
     updateUI();
 </script>
 </body>
