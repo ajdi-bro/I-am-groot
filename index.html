@@ -2,7 +2,7 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Retro City Architect - Smooth Build</title>
+    <title>Pixel City Architect - Discovery Edition</title>
     <style>
         :root {
             --ui-bg: #c6c6c6;
@@ -42,51 +42,35 @@
             height: var(--block-size);
             background: #4da33d;
             position: relative;
+            transition: background 0.3s;
         }
 
         /* PIXEL BUILDINGS - OVENFRA */
-        .asset { position: absolute; width: 100%; height: 100%; animation: pop 0.3s steps(3); }
+        .asset { position: absolute; width: 100%; height: 100%; animation: pop 0.3s steps(3); z-index: 2; }
         .house { background: #8b4513; border: 12px solid #5d2e0d; box-sizing: border-box; } 
-        .road { background: #333; }
+        .road { background: #333; z-index: 1 !important; }
         .road::after { content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 4px; border-top: 4px dashed #eee; transform: translateY(-50%); }
         .garden { background: #7cfc00; border: 8px solid #55a600; box-sizing: border-box; }
         .tree { background: #2d5a24; border-radius: 50%; width: 50%; height: 50%; margin: 25%; box-shadow: 4px 4px 0 #1e3d18; }
+        .water { background: #00ace6; border: 4px inset #0086b3; }
+        .playground { background: #e6e600; border: 6px dotted #ff6600; }
         .police { background: #00008b; border: 10px solid #0000cd; box-sizing: border-box; }
+        .fire { background: #cc0000; border: 10px solid #990000; box-sizing: border-box; }
         .park { background: #228b22; border: 4px solid #006400; }
+        .hospital { background: #fff; border: 4px solid #d3d3d3; box-sizing: border-box; }
+        .hospital::after { content: '+'; color: red; font-size: 40px; font-weight: bold; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .skyscraper { background: #555; border: 15px solid #333; box-shadow: 10px 10px 20px rgba(0,0,0,0.5); }
 
         /* FYSIKK-PENGER */
-        .money {
-            position: absolute;
-            z-index: 9999;
-            pointer-events: none;
-            image-rendering: pixelated;
-        }
-        .pixel-coin {
-            width: 20px; height: 20px;
-            background: #ffd700; border: 2px solid #b8860b;
-            box-shadow: 2px 2px 0 #8b6508;
-        }
-        .pixel-bill {
-            width: 40px; height: 20px;
-            background: #71aa37; border: 2px solid #2d5a24;
-            box-shadow: 3px 3px 0 #1e3d18;
-            color: white; font-size: 10px; font-weight: bold;
-            display: flex; align-items: center; justify-content: center;
-        }
+        .money { position: absolute; z-index: 9999; pointer-events: none; image-rendering: pixelated; }
+        .pixel-coin { width: 20px; height: 20px; background: #ffd700; border: 2px solid #b8860b; box-shadow: 2px 2px 0 #8b6508; }
+        .pixel-bill { width: 40px; height: 20px; background: #71aa37; border: 2px solid #2d5a24; box-shadow: 3px 3px 0 #1e3d18; color: white; font-size: 10px; font-weight: bold; display: flex; align-items: center; justify-content: center; }
 
         /* UI */
-        .ui-panel {
-            position: absolute; background: var(--ui-bg); border: 4px solid var(--ui-border-light);
-            border-right-color: var(--ui-border-dark); border-bottom-color: var(--ui-border-dark);
-            padding: 12px; z-index: 10000; box-shadow: 6px 6px 0 rgba(0,0,0,0.4);
-        }
+        .ui-panel { position: absolute; background: var(--ui-bg); border: 4px solid var(--ui-border-light); border-right-color: var(--ui-border-dark); border-bottom-color: var(--ui-border-dark); padding: 12px; z-index: 10000; box-shadow: 6px 6px 0 rgba(0,0,0,0.4); }
         #money-ui { top: 20px; left: 20px; font-size: 24px; font-weight: bold; }
-        #shop-ui { top: 20px; right: 20px; width: 220px; max-height: 80vh; overflow-y: auto; }
-
-        .shop-item {
-            background: #999; border: 2px solid #eee; border-right-color: #444; border-bottom-color: #444;
-            padding: 8px; margin: 6px 0; cursor: pointer; display: flex; justify-content: space-between; font-size: 12px;
-        }
+        #shop-ui { top: 20px; right: 20px; width: 240px; max-height: 80vh; overflow-y: auto; }
+        .shop-item { background: #999; border: 2px solid #eee; border-right-color: #444; border-bottom-color: #444; padding: 8px; margin: 6px 0; cursor: pointer; display: flex; justify-content: space-between; font-size: 11px; }
         .shop-item.disabled { opacity: 0.5; cursor: not-allowed; color: #444; }
 
         @keyframes pop { from { transform: scale(0); } to { transform: scale(1); } }
@@ -98,7 +82,7 @@
 <div id="money-ui" class="ui-panel">COINS: <span id="coin-count">0</span></div>
 
 <div id="shop-ui" class="ui-panel">
-    <div style="text-align: center; border-bottom: 2px solid #555; margin-bottom: 10px; font-weight: bold;">BUTIKK</div>
+    <div style="text-align: center; border-bottom: 2px solid #555; margin-bottom: 10px; font-weight: bold;">BYPLAN-BUTIKK</div>
     <div id="shop-content"></div>
 </div>
 
@@ -109,11 +93,23 @@
 <script>
     let state = {
         coins: 0,
-        totalSpent: 0,
         clickCount: 0,
         gridSize: 2,
         billValue: 10,
-        builtCount: 0
+        totalSpent: 0,
+        unlocked: ['hage', 'tre', 'vei', 'hus']
+    };
+
+    // Forhåndsbestemt bykart-layout (posisjon i grid)
+    // Dette er planen arkitekten har lagt
+    const cityPlan = {
+        0: 'house', 1: 'garden', 2: 'tree', 3: 'road', // 2x2 start
+        4: 'road', 5: 'house', 6: 'road', 7: 'house',
+        8: 'garden', 9: 'water', 10: 'water', 11: 'garden',
+        12: 'road', 13: 'road', 14: 'road', 15: 'road', // 4x4
+        16: 'police', 17: 'fire', 18: 'playground', 19: 'park',
+        20: 'hospital', 21: 'hospital', 24: 'hospital', 25: 'hospital', // Sykehus tar 4 ruter (2x2)
+        22: 'skyscraper', 23: 'skyscraper'
     };
 
     const buildingTypes = [
@@ -121,51 +117,45 @@
         { id: 'tre', name: "Tre", cost: 15, bonus: 1, class: 'tree' },
         { id: 'vei', name: "Vei", cost: 20, bonus: 2, class: 'road' },
         { id: 'hus', name: "Hus", cost: 200, bonus: 10, class: 'house' },
-        { id: 'park', name: "Park", cost: 800, bonus: 25, class: 'park', unlock: 400 },
-        { id: 'politi', name: "Politi", cost: 2000, bonus: 60, class: 'police', unlock: 1000 }
+        { id: 'vann', name: "Vann", cost: 50, bonus: 2, class: 'water', unlock: 100 },
+        { id: 'leke', name: "Lekeplass", cost: 150, bonus: 8, class: 'playground', unlock: 300 },
+        { id: 'park', name: "Park", cost: 800, bonus: 25, class: 'park', unlock: 800 },
+        { id: 'politi', name: "Politi", cost: 2000, bonus: 60, class: 'police', unlock: 1500 },
+        { id: 'brann', name: "Brannstasjon", cost: 2500, bonus: 70, class: 'fire', unlock: 2000 },
+        { id: 'sykehus', name: "Sykehus (4x)", cost: 6000, bonus: 200, class: 'hospital', unlock: 5000 },
+        { id: 'skyskraper', name: "Skyskraper", cost: 15000, bonus: 500, class: 'skyscraper', unlock: 10000 }
     ];
 
     const container = document.getElementById('city-container');
 
-    // Initialiserer rutenettet første gang uten å tømme det senere
     function createInitialGrid() {
         container.style.gridTemplateColumns = `repeat(${state.gridSize}, var(--block-size))`;
         for(let i=0; i < state.gridSize * state.gridSize; i++) {
-            addSlot();
+            addSlot(i);
         }
         adjustZoom();
     }
 
-    function addSlot() {
+    function addSlot(index) {
         let slot = document.createElement('div');
         slot.className = 'slot';
+        slot.id = `slot-${index}`;
         container.appendChild(slot);
     }
 
     function adjustZoom() {
-        const padding = 80;
-        const availableW = window.innerWidth - (padding * 2);
-        const availableH = window.innerHeight - (padding * 2);
-        const gridPx = state.gridSize * 82;
-        
-        let scale = Math.min(availableW / gridPx, availableH / gridPx);
-        if(scale > 1) scale = 1;
-        
+        const padding = 100;
+        const scale = Math.min(1, (window.innerWidth - padding) / (state.gridSize * 82), (window.innerHeight - padding) / (state.gridSize * 82));
         container.style.transform = `scale(${scale})`;
     }
 
-    // Penge-fysikk
+    // Penge-animasjon
     document.body.addEventListener('mousedown', (e) => {
         if(e.target.closest('.ui-panel')) return;
-        
         state.clickCount++;
         let isBill = state.clickCount % 5 === 0;
         let amount = isBill ? 1 : 5;
-        
-        for(let i=0; i < amount; i++) {
-            spawnMoney(e.clientX, e.clientY, isBill);
-        }
-
+        for(let i=0; i < amount; i++) spawnMoney(e.clientX, e.clientY, isBill);
         state.coins += isBill ? state.billValue : amount;
         updateUI();
     });
@@ -175,38 +165,13 @@
         el.className = `money ${isBill ? 'pixel-bill' : 'pixel-coin'}`;
         if(isBill) el.innerText = state.billValue;
         document.body.appendChild(el);
-
-        let px = x + (Math.random() * 40 - 20);
-        let py = y;
-        let vx = (Math.random() - 0.5) * 10;
-        let vy = -Math.random() * 10 - 5;
-        const grav = 0.6;
-        const bnc = -0.5;
-        const floor = window.innerHeight - 30;
-
+        let px = x + (Math.random() * 40 - 20), py = y, vx = (Math.random() - 0.5) * 10, vy = -Math.random() * 10 - 5;
         function animate() {
-            vy += grav;
-            px += vx;
-            py += vy;
-
-            if (py >= floor) {
-                py = floor;
-                vy *= bnc;
-                vx *= 0.8;
-            }
-
-            el.style.left = px + 'px';
-            el.style.top = py + 'px';
-            el.style.transform = `rotate(${px}deg)`;
-
-            if (Math.abs(vy) > 0.5 || py < floor - 5) {
-                requestAnimationFrame(animate);
-            } else {
-                setTimeout(() => {
-                    el.classList.add('fade-out');
-                    setTimeout(() => el.remove(), 400);
-                }, 1000);
-            }
+            vy += 0.6; px += vx; py += vy;
+            if (py >= window.innerHeight - 30) { py = window.innerHeight - 30; vy *= -0.5; vx *= 0.8; }
+            el.style.left = px + 'px'; el.style.top = py + 'px'; el.style.transform = `rotate(${px}deg)`;
+            if (Math.abs(vy) > 0.5 || py < window.innerHeight - 35) requestAnimationFrame(animate);
+            else { setTimeout(() => { el.classList.add('fade-out'); setTimeout(() => el.remove(), 400); }, 1000); }
         }
         requestAnimationFrame(animate);
     }
@@ -219,68 +184,81 @@
         buildingTypes.forEach(b => {
             if(b.unlock && state.totalSpent < b.unlock) return;
 
+            // Sjekk om det er ledige plasser for akkurat DENNE typen på kartet
+            const availableSlots = findAvailableSlotsFor(b.class);
+            const isFull = availableSlots.length === 0;
+
             const item = document.createElement('div');
-            const canAfford = state.coins >= b.cost;
+            const canAfford = state.coins >= b.cost && !isFull;
             item.className = `shop-item ${!canAfford ? 'disabled' : ''}`;
-            item.innerHTML = `<span>${b.name}</span> <span>${b.cost}c</span>`;
+            item.innerHTML = `<span>${b.name}${isFull ? ' (Fullplanlagt)' : ''}</span> <span>${b.cost}c</span>`;
             
             if(canAfford) {
-                item.onclick = (e) => {
-                    e.stopPropagation();
-                    buyBuilding(b);
-                };
+                item.onclick = (e) => { e.stopPropagation(); buyBuilding(b, availableSlots); };
             }
             shop.appendChild(item);
         });
     }
 
-    function buyBuilding(b) {
-        const slots = document.querySelectorAll('.slot');
-        // Finn den neste ledige slokken (den som ikke har en .asset)
-        let targetSlot = null;
-        for (let slot of slots) {
-            if (!slot.querySelector('.asset')) {
-                targetSlot = slot;
-                break;
+    function findAvailableSlotsFor(className) {
+        let available = [];
+        // Sjekk kun slots innenfor nåværende gridSize
+        for (let i = 0; i < state.gridSize * state.gridSize; i++) {
+            if (cityPlan[i] === className) {
+                const slot = document.getElementById(`slot-${i}`);
+                if (slot && !slot.querySelector('.asset')) {
+                    available.push(i);
+                }
             }
         }
+        return available;
+    }
 
-        if (targetSlot) {
-            state.coins -= b.cost;
-            state.totalSpent += b.cost;
-            state.builtCount++;
-            state.billValue += 2;
-            b.cost = Math.floor(b.cost * 1.4);
+    function buyBuilding(b, availableSlots) {
+        state.coins -= b.cost;
+        state.totalSpent += b.cost;
+        state.billValue += 2;
+        b.cost = Math.floor(b.cost * 1.4);
 
-            // LEGG TIL KUN DEN NYE BLOKKA UTEN Å RELOADE ALT
+        // Sykehuset er spesielt og tar 4 plasser
+        if (b.class === 'hospital') {
+            [20, 21, 24, 25].forEach(idx => {
+                let asset = document.createElement('div');
+                asset.className = `asset ${b.class}`;
+                document.getElementById(`slot-${idx}`).appendChild(asset);
+            });
+        } else {
+            let targetIdx = availableSlots[0];
             let asset = document.createElement('div');
             asset.className = `asset ${b.class}`;
-            targetSlot.appendChild(asset);
+            document.getElementById(`slot-${targetIdx}`).appendChild(asset);
+        }
 
-            // Sjekk om vi har fylt opp kvadratet og må legge til nye TOMME blokker
-            if(state.builtCount === state.gridSize * state.gridSize) {
-                expandGrid();
-            }
+        // Sjekk om kartet er "fullt" (ingen flere ledige planer i cityPlan for denne gridSize)
+        checkForExpansion();
+        updateUI();
+    }
 
-            updateUI();
+    function checkForExpansion() {
+        let slotsInGrid = state.gridSize * state.gridSize;
+        let occupied = 0;
+        for(let i=0; i<slotsInGrid; i++) {
+            if(document.getElementById(`slot-${i}`).querySelector('.asset')) occupied++;
+        }
+
+        // Hvis alle planlagte ruter i nåværende grid er fylt, utvid
+        if(occupied >= slotsInGrid * 0.8) { // Utvid når 80% er fylt for å unngå stuck
+            expandGrid();
         }
     }
 
     function expandGrid() {
-        const oldSize = state.gridSize;
+        const oldTotal = state.gridSize * state.gridSize;
         state.gridSize += 2;
-        const newTotal = state.gridSize * state.gridSize;
-        const currentTotal = oldSize * oldSize;
-        
-        // Oppdater grid-kolonner
         container.style.gridTemplateColumns = `repeat(${state.gridSize}, var(--block-size))`;
-        
-        // Legg til de nye tomme blokkene
-        for (let i = 0; i < (newTotal - currentTotal); i++) {
-            addSlot();
+        for (let i = oldTotal; i < state.gridSize * state.gridSize; i++) {
+            addSlot(i);
         }
-        
-        // Zoom ut for å få plass til de nye blokkene
         adjustZoom();
     }
 
