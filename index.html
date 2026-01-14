@@ -2,12 +2,13 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Pixel City Architect - Bounce Edition</title>
+    <title>Pixel City Architect - Final Fix</title>
     <style>
         :root {
             --ui-bg: #c6c6c6;
             --ui-border-light: #ffffff;
             --ui-border-dark: #555;
+            --block-size: 80px;
         }
 
         body, html {
@@ -25,26 +26,29 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            background: radial-gradient(circle, #222 0%, #111 100%);
         }
 
         #city-container {
             display: grid;
             gap: 2px;
-            background: #222;
+            background: #333;
             padding: 4px;
             image-rendering: pixelated;
-            transition: transform 0.5s ease;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-origin: center center;
         }
 
         .slot {
-            width: 80px;
-            height: 80px;
+            width: var(--block-size);
+            height: var(--block-size);
             background: #4da33d;
             position: relative;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.2);
         }
 
         /* BYGNINGER */
-        .asset { position: absolute; width: 100%; height: 100%; animation: pop 0.2s steps(3); }
+        .asset { position: absolute; width: 100%; height: 100%; animation: pop 0.3s steps(3); }
         .house { background: #8b4513; border: 12px solid #5d2e0d; box-sizing: border-box; } 
         .road { background: #333; }
         .road::after { content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 4px; border-top: 4px dashed #eee; transform: translateY(-50%); }
@@ -52,24 +56,27 @@
         .tree { background: #2d5a24; border-radius: 50%; width: 50%; height: 50%; margin: 25%; box-shadow: 4px 4px 0 #1e3d18; }
         .police { background: #00008b; border: 10px solid #0000cd; box-sizing: border-box; }
         .park { background: #228b22; border: 4px solid #006400; }
+        .hospital { background: #fff; border: 8px solid #d3d3d3; position: relative; }
+        .hospital::after { content: '+'; color: red; font-size: 30px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
 
-        /* PIXEL PENGER MED FYSIKK */
+        /* PIXEL PENGER */
         .money {
             position: absolute;
-            z-index: 1000;
+            z-index: 5000;
             pointer-events: none;
             image-rendering: pixelated;
+            top: 0; left: 0;
         }
         .pixel-coin {
-            width: 20px; height: 20px;
+            width: 18px; height: 18px;
             background: #ffd700; border: 2px solid #b8860b;
             box-shadow: 2px 2px 0 #8b6508;
         }
         .pixel-bill {
-            width: 40px; height: 20px;
+            width: 36px; height: 18px;
             background: #71aa37; border: 2px solid #2d5a24;
             box-shadow: 3px 3px 0 #1e3d18;
-            color: white; font-size: 10px; font-weight: bold;
+            color: white; font-size: 9px; font-weight: bold;
             display: flex; align-items: center; justify-content: center;
         }
 
@@ -77,19 +84,19 @@
         .ui-panel {
             position: absolute; background: var(--ui-bg); border: 4px solid var(--ui-border-light);
             border-right-color: var(--ui-border-dark); border-bottom-color: var(--ui-border-dark);
-            padding: 12px; z-index: 2000; box-shadow: 6px 6px 0 rgba(0,0,0,0.4);
+            padding: 12px; z-index: 10000; box-shadow: 6px 6px 0 rgba(0,0,0,0.4);
         }
-        #money-ui { top: 20px; left: 20px; font-size: 24px; }
+        #money-ui { top: 20px; left: 20px; font-size: 24px; font-weight: bold; }
         #shop-ui { top: 20px; right: 20px; width: 220px; max-height: 80vh; overflow-y: auto; }
 
         .shop-item {
             background: #999; border: 2px solid #eee; border-right-color: #444; border-bottom-color: #444;
             padding: 8px; margin: 6px 0; cursor: pointer; display: flex; justify-content: space-between; font-size: 12px;
         }
-        .shop-item.disabled { opacity: 0.5; cursor: not-allowed; color: #444; }
+        .shop-item.disabled { opacity: 0.5; cursor: not-allowed; color: #555; }
 
         @keyframes pop { from { transform: scale(0); } to { transform: scale(1); } }
-        .fade-out { opacity: 0; transition: opacity 0.5s; }
+        .fade-out { opacity: 0; transition: opacity 0.4s; }
     </style>
 </head>
 <body>
@@ -111,45 +118,48 @@
         clickCount: 0,
         gridSize: 2,
         billValue: 10,
-        totalItemsBuilt: 0
+        totalItemsBuilt: 0,
+        currentZoom: 1
     };
 
-    // Bygningsdata
-    const buildings = {
-        hage: { name: "Hage", cost: 10, bonus: 1, class: 'garden' },
-        tre: { name: "Tre", cost: 15, bonus: 1, class: 'tree' },
-        vei: { name: "Vei", cost: 20, bonus: 2, class: 'road' },
-        hus: { name: "Hus", cost: 200, bonus: 10, class: 'house' },
-        park: { name: "Park", cost: 800, bonus: 25, class: 'park', unlock: 300 },
-        politi: { name: "Politi", cost: 2000, bonus: 60, class: 'police', unlock: 1000 }
-    };
+    const buildings = [
+        { id: 'hage', name: "Hage", cost: 10, bonus: 1, class: 'garden' },
+        { id: 'tre', name: "Tre", cost: 15, bonus: 1, class: 'tree' },
+        { id: 'vei', name: "Vei", cost: 20, bonus: 2, class: 'road' },
+        { id: 'hus', name: "Hus", cost: 200, bonus: 10, class: 'house' },
+        { id: 'park', name: "Park", cost: 800, bonus: 25, class: 'park' },
+        { id: 'politi', name: "Politi", cost: 2000, bonus: 60, class: 'police' },
+        { id: 'sykehus', name: "Sykehus", cost: 5000, bonus: 150, class: 'hospital' }
+    ];
 
     const container = document.getElementById('city-container');
 
     function initGrid() {
         container.innerHTML = '';
-        container.style.gridTemplateColumns = `repeat(${state.gridSize}, 80px)`;
+        container.style.gridTemplateColumns = `repeat(${state.gridSize}, var(--block-size))`;
         for(let i=0; i < state.gridSize * state.gridSize; i++) {
             let slot = document.createElement('div');
             slot.className = 'slot';
+            slot.id = 'slot-' + i;
             container.appendChild(slot);
         }
-        // Fyll inn de byggene vi allerede har bygd (hvis noen)
-        const builtItems = state.totalItemsBuilt;
-        const slots = document.querySelectorAll('.slot');
-        // (Logikk for å huske plassering kan legges til her, men for nå fyller vi fra start)
+        adjustZoom();
     }
 
     function adjustZoom() {
-        const padding = 100;
-        const availableWidth = window.innerWidth - padding;
-        const availableHeight = window.innerHeight - padding;
-        const gridPx = state.gridSize * 82;
-        const scale = Math.min(1, availableWidth / gridPx, availableHeight / gridPx);
-        container.style.transform = `scale(${scale})`;
+        const padding = 60;
+        const availableWidth = window.innerWidth - (padding * 2);
+        const availableHeight = window.innerHeight - (padding * 2);
+        const gridPx = (state.gridSize * 82) + 10;
+        
+        // Finn ut hvor mye vi MÅ zoome ut for å se hele kartet
+        let requiredScale = Math.min(availableWidth / gridPx, availableHeight / gridPx);
+        
+        // Bare zoom ut hvis kartet faktisk er for stort for skjermen (scale < 1)
+        state.currentZoom = Math.min(1, requiredScale);
+        container.style.transform = `scale(${state.currentZoom})`;
     }
 
-    // PENGE-FYSIKK
     document.body.addEventListener('mousedown', (e) => {
         if(e.target.closest('.ui-panel')) return;
         
@@ -171,13 +181,13 @@
         if(isBill) el.innerText = state.billValue;
         document.body.appendChild(el);
 
-        let posX = startX + (Math.random() * 40 - 20);
+        let posX = startX + (Math.random() * 60 - 30);
         let posY = startY;
-        let velX = (Math.random() - 0.5) * 10;
+        let velX = (Math.random() - 0.5) * 12;
         let velY = -Math.random() * 10 - 5;
         const gravity = 0.6;
-        const bounce = -0.5;
-        const ground = window.innerHeight - 30;
+        const bounce = -0.45;
+        const ground = window.innerHeight - 40;
 
         function step() {
             velY += gravity;
@@ -187,18 +197,18 @@
             if (posY >= ground) {
                 posY = ground;
                 velY *= bounce;
-                velX *= 0.8; // Friksjon
+                velX *= 0.7;
             }
 
-            el.style.transform = `translate(${posX}px, ${posY}px) rotate(${posX}deg)`;
+            el.style.transform = `translate(${posX}px, ${posY}px) rotate(${posX * 0.5}deg)`;
 
             if (Math.abs(velY) > 0.5 || posY < ground - 5) {
                 requestAnimationFrame(step);
             } else {
                 setTimeout(() => {
                     el.classList.add('fade-out');
-                    setTimeout(() => el.remove(), 500);
-                }, 1000);
+                    setTimeout(() => el.remove(), 400);
+                }, 800);
             }
         }
         requestAnimationFrame(step);
@@ -209,9 +219,9 @@
         const shop = document.getElementById('shop-content');
         shop.innerHTML = '';
 
-        for(let id in buildings) {
-            const b = buildings[id];
-            if(b.unlock && state.coins < b.unlock && state.totalItemsBuilt < 5) continue;
+        buildings.forEach(b => {
+            // Vis bare ting man nesten har råd til
+            if (state.coins < b.cost * 0.5 && state.totalItemsBuilt < 2) return;
 
             const item = document.createElement('div');
             const canAfford = state.coins >= b.cost;
@@ -219,47 +229,13 @@
             item.innerHTML = `<span>${b.name}</span> <span>${b.cost}c</span>`;
             
             if(canAfford) {
-                item.onclick = () => buyBuilding(id);
+                item.onclick = () => buyBuilding(b);
             }
             shop.appendChild(item);
-        }
+        });
     }
 
-    function buyBuilding(id) {
-        const b = buildings[id];
+    function buyBuilding(buildingData) {
         let emptySlots = Array.from(document.querySelectorAll('.slot')).filter(s => s.innerHTML === '');
         
-        // Hvis ingen ledige plasser, utvid kartet før vi bygger
-        if(emptySlots.length === 0) {
-            state.gridSize += 2;
-            initGrid();
-            adjustZoom();
-            // Finn de nye tomme plassene etter initGrid
-            emptySlots = Array.from(document.querySelectorAll('.slot')).filter(s => s.innerHTML === '');
-        }
-
-        if(emptySlots.length > 0) {
-            state.coins -= b.cost;
-            state.totalItemsBuilt++;
-            state.billValue += 2;
-            // Prisene øker basert på hvor mange av den tingen du har
-            b.cost = Math.floor(b.cost * 1.4); 
-
-            const asset = document.createElement('div');
-            asset.className = `asset ${b.class}`;
-            // Finn første ledige plass (vi fyller fra toppen)
-            const targetIndex = state.totalItemsBuilt - 1;
-            const allSlots = document.querySelectorAll('.slot');
-            allSlots[targetIndex].appendChild(asset);
-            
-            updateUI();
-        }
-    }
-
-    window.onresize = adjustZoom;
-    initGrid();
-    updateUI();
-    adjustZoom();
-</script>
-</body>
-</html>
+        // Hvis vi kjøper den siste
