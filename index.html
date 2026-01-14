@@ -2,7 +2,7 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Pixel City Architect - Final Layout</title>
+    <title>Pixel City Architect - Urban Expansion</title>
     <style>
         :root {
             --ui-bg: #c6c6c6;
@@ -31,8 +31,8 @@
             background: #222;
             padding: 8px;
             image-rendering: pixelated;
-            transition: transform 0.5s ease;
-            max-width: 70vw; /* Hindrer overlapping med butikken */
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            max-width: 75vw;
         }
 
         .slot {
@@ -41,26 +41,24 @@
         }
 
         /* BYGNINGER */
-        .asset { position: absolute; width: 100%; height: 100%; animation: pop 0.3s steps(3); z-index: 2; box-sizing: border-box; }
-        .house { background: #8b4513; border: 12px solid #5d2e0d; } 
-        .garden { background: #7cfc00; border: 8px solid #55a600; }
+        .asset { position: absolute; width: 100%; height: 100%; animation: pop 0.3s steps(3); z-index: 2; }
+        .house { background: #8b4513; border: 12px solid #5d2e0d; box-sizing: border-box; } 
+        .garden { background: #7cfc00; border: 8px solid #55a600; box-sizing: border-box; }
         .tree { background: #2d5a24; border-radius: 50%; width: 40px; height: 40px; margin: 20px; box-shadow: 4px 4px 0 #1e3d18; }
-        .water { background: #00ace6; border-top: 4px solid #fff; }
-        .hospital { background: #fff; border: 4px solid #d3d3d3; }
-        .hospital::after { content: '+'; color: red; font-size: 40px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .water { background: #00ace6; border-top: 4px solid #fff; z-index: 1; }
+        .hospital { background: #fff; border: 4px solid #d3d3d3; box-sizing: border-box; }
+        .hospital::after { content: '+'; color: red; font-size: 40px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-weight: bold; }
 
-        /* VEI-SYSTEM MED SVINGER */
+        /* VEI-SYSTEM */
         .road { background: #333; z-index: 1 !important; }
         .road-h::after { content: ''; position: absolute; top: 50%; width: 100%; height: 4px; border-top: 4px dashed #eee; transform: translateY(-50%); }
         .road-v::after { content: ''; position: absolute; left: 50%; height: 100%; width: 4px; border-left: 4px dashed #eee; transform: translateX(-50%); }
-        /* Sving-grafikk (forenklet pixel-look) */
-        .road-turn-br { border-bottom-right-radius: 40px; border-right: 6px solid #555; border-bottom: 6px solid #555; }
-        .road-turn-bl { border-bottom-left-radius: 40px; border-left: 6px solid #555; border-bottom: 6px solid #555; }
+        .road-turn { border-radius: 50% 0 0 0; border-top: 8px solid #555; border-left: 8px solid #555; }
 
-        /* PENGE-ANIMS (BEHOLDT FRA FORRIGE GODE VERSJON) */
-        .money { position: absolute; z-index: 9999; pointer-events: none; }
-        .pixel-coin { width: 20px; height: 20px; background: #ffd700; border: 2px solid #b8860b; box-shadow: 2px 2px 0 #8b6508; }
-        .pixel-bill { width: 40px; height: 20px; background: #71aa37; border: 2px solid #2d5a24; color: white; font-size: 10px; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        /* PENGE-ANIMS */
+        .money { position: absolute; z-index: 9999; pointer-events: none; image-rendering: pixelated; }
+        .pixel-coin { width: 22px; height: 22px; background: #ffd700; border: 2px solid #b8860b; box-shadow: 2px 2px 0 #8b6508; }
+        .pixel-bill { width: 44px; height: 22px; background: #71aa37; border: 2px solid #2d5a24; color: white; font-size: 11px; display: flex; align-items: center; justify-content: center; font-weight: bold; }
 
         /* UI */
         .ui-panel { position: absolute; background: var(--ui-bg); border: 4px solid var(--ui-border-light); border-right-color: var(--ui-border-dark); border-bottom-color: var(--ui-border-dark); padding: 12px; z-index: 10000; box-shadow: 6px 6px 0 rgba(0,0,0,0.4); }
@@ -76,69 +74,69 @@
 <body>
 
 <div id="money-ui" class="ui-panel">COINS: <span id="coin-count">0</span></div>
-<div id="shop-ui" class="ui-panel"><div id="shop-content"></div></div>
+<div id="shop-ui" class="ui-panel">
+    <div style="text-align:center; font-weight:bold; margin-bottom:10px; border-bottom: 2px solid #555;">ARKITEKT</div>
+    <div id="shop-content"></div>
+</div>
 <div id="game-viewport"><div id="city-container"></div></div>
 
 <script>
     let state = {
         coins: 0,
         gridSize: 2,
-        builtCount: 0,
-        totalSlots: 4,
-        history: {} // Lagrer hva som er bygget på hver index
+        history: {} 
     };
 
-    // Byplan: Bestemmer hva som skal være hvor
-    function getPlan(i, size) {
+    // Fast byplan-generator
+    function getPlannedType(i, size) {
         let x = i % size;
         let y = Math.floor(i / size);
-        if (x === size - 1) return 'water';
-        if (y === 1 && x < size - 1) return 'road'; // Horisontal vei
-        if (x === 1 && y > 1) return 'road'; // Vertikal vei
-        if (x === 0) return 'house';
+        
+        if (x === size - 1) return 'water'; // Kysten flytter seg alltid med gridSize
+        if (x === 1 || y === 1) return 'road'; // Veier danner et kors/L-form
+        if (x === 0 && y === 0) return 'hospital';
+        if (x % 2 === 0) return 'house';
+        if (y % 2 === 0) return 'garden';
         return 'tree';
     }
 
     const buildingTypes = [
         { id: 'vei', name: "Vei", cost: 20, class: 'road' },
         { id: 'hus', name: "Hus", cost: 100, class: 'house' },
-        { id: 'tre', name: "Tre", cost: 10, class: 'tree' },
-        { id: 'hage', name: "Hage", cost: 50, class: 'garden' },
-        { id: 'sykehus', name: "Sykehus", cost: 1000, class: 'hospital' }
+        { id: 'hage', name: "Hage", cost: 60, class: 'garden' },
+        { id: 'tre', name: "Tre", cost: 15, class: 'tree' },
+        { id: 'sykehus', name: "Sykehus", cost: 1500, class: 'hospital' }
     ];
 
     const container = document.getElementById('city-container');
 
-    function renderCity() {
+    function drawCity() {
         container.style.gridTemplateColumns = `repeat(${state.gridSize}, var(--block-size))`;
         container.innerHTML = '';
-        state.totalSlots = state.gridSize * state.gridSize;
 
-        for (let i = 0; i < state.totalSlots; i++) {
+        for (let i = 0; i < state.gridSize * state.gridSize; i++) {
             let slot = document.createElement('div');
             slot.className = 'slot';
             slot.id = `slot-${i}`;
             
-            // Sett inn igjen det som var bygget fra før (Hindre reset)
-            if (state.history[i]) {
-                addAssetToSlot(slot, state.history[i], i);
-            } else if (getPlan(i, state.gridSize) === 'water') {
-                addAssetToSlot(slot, 'water', i);
+            let type = state.history[i] || (getPlannedType(i, state.gridSize) === 'water' ? 'water' : null);
+            if (type) {
+                addAsset(slot, type, i);
             }
             container.appendChild(slot);
         }
         adjustZoom();
+        updateUI();
     }
 
-    function addAssetToSlot(slot, type, index) {
+    function addAsset(slot, type, index) {
         let asset = document.createElement('div');
         asset.className = `asset ${type}`;
         
-        // Sving-logikk
         if (type === 'road') {
             let x = index % state.gridSize;
             let y = Math.floor(index / state.gridSize);
-            if (x === 1 && y === 1) asset.classList.add('road-turn-br'); // Svingen!
+            if (x === 1 && y === 1) asset.classList.add('road-turn');
             else if (y === 1) asset.classList.add('road-h');
             else asset.classList.add('road-v');
         }
@@ -150,69 +148,78 @@
         container.style.transform = `scale(${scale})`;
     }
 
-    // PENGE-ANIMS: Mange mynter samtidig!
     document.body.addEventListener('mousedown', (e) => {
         if(e.target.closest('.ui-panel')) return;
-        let isBill = Math.random() > 0.8;
-        let count = isBill ? 1 : 5; // Faller 5 mynter samtidig
-        for(let i=0; i<count; i++) spawnMoney(e.clientX, e.clientY, isBill);
-        state.coins += count * 5;
+        let isBill = Math.random() > 0.85;
+        let numObjects = isBill ? 1 : 6; // Nå faller det 6 mynter per trykk
+        
+        for(let i=0; i<numObjects; i++) spawnMoney(e.clientX, e.clientY, isBill);
+        state.coins += isBill ? 50 : 10;
         updateUI();
     });
 
     function spawnMoney(x, y, isBill) {
         const el = document.createElement('div');
         el.className = `money ${isBill ? 'pixel-bill' : 'pixel-coin'}`;
+        if(isBill) el.innerText = "50";
         document.body.appendChild(el);
-        let px = x + (Math.random() * 40 - 20), py = y, vx = (Math.random() - 0.5) * 10, vy = -10;
-        function anim() {
+        
+        let px = x + (Math.random() * 60 - 30), py = y;
+        let vx = (Math.random() - 0.5) * 12, vy = -Math.random() * 10 - 5;
+        const floor = window.innerHeight - 30;
+
+        function step() {
             vy += 0.6; px += vx; py += vy;
-            if (py >= window.innerHeight - 30) { py = window.innerHeight - 30; vy *= -0.5; }
+            if (py >= floor) { py = floor; vy *= -0.5; vx *= 0.8; }
             el.style.left = px + 'px'; el.style.top = py + 'px';
-            if (Math.abs(vy) > 0.5 || py < window.innerHeight - 35) requestAnimationFrame(anim);
+            el.style.transform = `rotate(${px}deg)`;
+            if (Math.abs(vy) > 0.5 || py < floor - 5) requestAnimationFrame(step);
             else { setTimeout(() => { el.classList.add('fade-out'); setTimeout(() => el.remove(), 400); }, 1000); }
         }
-        requestAnimationFrame(anim);
+        requestAnimationFrame(step);
     }
 
     function updateUI() {
         document.getElementById('coin-count').innerText = state.coins;
         const shop = document.getElementById('shop-content');
-        shop.innerHTML = '<div style="text-align:center; font-weight:bold; margin-bottom:10px;">BUTIKK</div>';
+        shop.innerHTML = '';
+
+        let anyAvailable = false;
 
         buildingTypes.forEach(b => {
             let slots = [];
-            for(let i=0; i<state.totalSlots; i++) {
-                if(getPlan(i, state.gridSize) === b.class && !state.history[i]) slots.push(i);
+            for(let i=0; i < state.gridSize * state.gridSize; i++) {
+                if(getPlannedType(i, state.gridSize) === b.class && !state.history[i]) slots.push(i);
             }
-            let isFull = slots.length === 0;
+            
+            const isFull = slots.length === 0;
+            if (!isFull) anyAvailable = true;
+
             let item = document.createElement('div');
-            item.className = `shop-item ${state.coins < b.cost || isFull ? 'disabled' : ''}`;
+            const canAfford = state.coins >= b.cost && !isFull;
+            item.className = `shop-item ${!canAfford ? 'disabled' : ''}`;
             item.innerHTML = `<span>${b.name}${isFull ? ' (Fullt)' : ''}</span> <span>${b.cost}c</span>`;
-            if(!isFull && state.coins >= b.cost) item.onclick = () => buy(b, slots[0]);
+            if(canAfford) item.onclick = () => buy(b, slots[0]);
             shop.appendChild(item);
         });
+
+        // HVIS ALT ER FULLT -> UTVID AUTOMATISK
+        if (!anyAvailable) {
+            state.gridSize += 2;
+            drawCity();
+        }
     }
 
-    function buy(b, index) {
+    function buy(b, idx) {
         state.coins -= b.cost;
-        state.history[index] = b.class;
-        state.builtCount++;
-        
-        let slot = document.getElementById(`slot-${index}`);
-        addAssetToSlot(slot, b.class, index);
-
-        // Utvid kartet hvis nesten alt er bygget
-        if (state.builtCount >= (state.totalSlots * 0.6)) {
-            state.gridSize += 2;
-            renderCity();
-        }
+        state.history[idx] = b.class;
+        let slot = document.getElementById(`slot-${idx}`);
+        addAsset(slot, b.class, idx);
         updateUI();
     }
 
     window.onresize = adjustZoom;
-    renderCity();
-    updateUI();
+    drawCity();
 </script>
 </body>
 </html>
