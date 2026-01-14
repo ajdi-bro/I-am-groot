@@ -2,7 +2,7 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Pixel City Architect - Final Fix</title>
+    <title>Retro City Architect - Master Build</title>
     <style>
         :root {
             --ui-bg: #c6c6c6;
@@ -26,17 +26,15 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            background: radial-gradient(circle, #222 0%, #111 100%);
         }
 
         #city-container {
             display: grid;
             gap: 2px;
-            background: #333;
+            background: #222;
             padding: 4px;
             image-rendering: pixelated;
-            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-            transform-origin: center center;
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .slot {
@@ -44,10 +42,9 @@
             height: var(--block-size);
             background: #4da33d;
             position: relative;
-            box-shadow: inset 0 0 5px rgba(0,0,0,0.2);
         }
 
-        /* BYGNINGER */
+        /* PIXEL BUILDINGS - OVENFRA */
         .asset { position: absolute; width: 100%; height: 100%; animation: pop 0.3s steps(3); }
         .house { background: #8b4513; border: 12px solid #5d2e0d; box-sizing: border-box; } 
         .road { background: #333; }
@@ -56,27 +53,24 @@
         .tree { background: #2d5a24; border-radius: 50%; width: 50%; height: 50%; margin: 25%; box-shadow: 4px 4px 0 #1e3d18; }
         .police { background: #00008b; border: 10px solid #0000cd; box-sizing: border-box; }
         .park { background: #228b22; border: 4px solid #006400; }
-        .hospital { background: #fff; border: 8px solid #d3d3d3; position: relative; }
-        .hospital::after { content: '+'; color: red; font-size: 30px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
 
-        /* PIXEL PENGER */
+        /* FYSIKK-PENGER */
         .money {
             position: absolute;
-            z-index: 5000;
+            z-index: 9999;
             pointer-events: none;
             image-rendering: pixelated;
-            top: 0; left: 0;
         }
         .pixel-coin {
-            width: 18px; height: 18px;
+            width: 20px; height: 20px;
             background: #ffd700; border: 2px solid #b8860b;
             box-shadow: 2px 2px 0 #8b6508;
         }
         .pixel-bill {
-            width: 36px; height: 18px;
+            width: 40px; height: 20px;
             background: #71aa37; border: 2px solid #2d5a24;
             box-shadow: 3px 3px 0 #1e3d18;
-            color: white; font-size: 9px; font-weight: bold;
+            color: white; font-size: 10px; font-weight: bold;
             display: flex; align-items: center; justify-content: center;
         }
 
@@ -93,7 +87,7 @@
             background: #999; border: 2px solid #eee; border-right-color: #444; border-bottom-color: #444;
             padding: 8px; margin: 6px 0; cursor: pointer; display: flex; justify-content: space-between; font-size: 12px;
         }
-        .shop-item.disabled { opacity: 0.5; cursor: not-allowed; color: #555; }
+        .shop-item.disabled { opacity: 0.5; cursor: not-allowed; color: #444; }
 
         @keyframes pop { from { transform: scale(0); } to { transform: scale(1); } }
         .fade-out { opacity: 0; transition: opacity 0.4s; }
@@ -115,51 +109,55 @@
 <script>
     let state = {
         coins: 0,
+        totalSpent: 0,
         clickCount: 0,
-        gridSize: 2,
+        gridSize: 2, // Starter 2x2
         billValue: 10,
-        totalItemsBuilt: 0,
-        currentZoom: 1
+        builtAssets: [] // Lagrer hva som er bygget
     };
 
-    const buildings = [
+    const buildingTypes = [
         { id: 'hage', name: "Hage", cost: 10, bonus: 1, class: 'garden' },
         { id: 'tre', name: "Tre", cost: 15, bonus: 1, class: 'tree' },
         { id: 'vei', name: "Vei", cost: 20, bonus: 2, class: 'road' },
         { id: 'hus', name: "Hus", cost: 200, bonus: 10, class: 'house' },
-        { id: 'park', name: "Park", cost: 800, bonus: 25, class: 'park' },
-        { id: 'politi', name: "Politi", cost: 2000, bonus: 60, class: 'police' },
-        { id: 'sykehus', name: "Sykehus", cost: 5000, bonus: 150, class: 'hospital' }
+        { id: 'park', name: "Park", cost: 800, bonus: 25, class: 'park', unlock: 400 },
+        { id: 'politi', name: "Politi", cost: 2000, bonus: 60, class: 'police', unlock: 1000 }
     ];
 
     const container = document.getElementById('city-container');
 
-    function initGrid() {
+    function renderGrid() {
         container.innerHTML = '';
         container.style.gridTemplateColumns = `repeat(${state.gridSize}, var(--block-size))`;
-        for(let i=0; i < state.gridSize * state.gridSize; i++) {
+        
+        let totalSlots = state.gridSize * state.gridSize;
+        for(let i=0; i < totalSlots; i++) {
             let slot = document.createElement('div');
             slot.className = 'slot';
-            slot.id = 'slot-' + i;
+            if(state.builtAssets[i]) {
+                let asset = document.createElement('div');
+                asset.className = `asset ${state.builtAssets[i]}`;
+                slot.appendChild(asset);
+            }
             container.appendChild(slot);
         }
         adjustZoom();
     }
 
     function adjustZoom() {
-        const padding = 60;
-        const availableWidth = window.innerWidth - (padding * 2);
-        const availableHeight = window.innerHeight - (padding * 2);
-        const gridPx = (state.gridSize * 82) + 10;
+        const padding = 80;
+        const availableW = window.innerWidth - (padding * 2);
+        const availableH = window.innerHeight - (padding * 2);
+        const gridPx = state.gridSize * 82;
         
-        // Finn ut hvor mye vi MÅ zoome ut for å se hele kartet
-        let requiredScale = Math.min(availableWidth / gridPx, availableHeight / gridPx);
+        let scale = Math.min(availableW / gridPx, availableH / gridPx);
+        if(scale > 1) scale = 1; // Ikke zoom inn mer enn naturlig størrelse
         
-        // Bare zoom ut hvis kartet faktisk er for stort for skjermen (scale < 1)
-        state.currentZoom = Math.min(1, requiredScale);
-        container.style.transform = `scale(${state.currentZoom})`;
+        container.style.transform = `scale(${scale})`;
     }
 
+    // PENGE-FYSIKK (BEHOLDT FRA DEN BRA VERSJONEN)
     document.body.addEventListener('mousedown', (e) => {
         if(e.target.closest('.ui-panel')) return;
         
@@ -168,50 +166,52 @@
         let amount = isBill ? 1 : 5;
         
         for(let i=0; i < amount; i++) {
-            createBouncingMoney(e.clientX, e.clientY, isBill);
+            spawnMoney(e.clientX, e.clientY, isBill);
         }
 
         state.coins += isBill ? state.billValue : amount;
         updateUI();
     });
 
-    function createBouncingMoney(startX, startY, isBill) {
+    function spawnMoney(x, y, isBill) {
         const el = document.createElement('div');
         el.className = `money ${isBill ? 'pixel-bill' : 'pixel-coin'}`;
         if(isBill) el.innerText = state.billValue;
         document.body.appendChild(el);
 
-        let posX = startX + (Math.random() * 60 - 30);
-        let posY = startY;
-        let velX = (Math.random() - 0.5) * 12;
-        let velY = -Math.random() * 10 - 5;
-        const gravity = 0.6;
-        const bounce = -0.45;
-        const ground = window.innerHeight - 40;
+        let px = x + (Math.random() * 40 - 20);
+        let py = y;
+        let vx = (Math.random() - 0.5) * 10;
+        let vy = -Math.random() * 10 - 5;
+        const grav = 0.6;
+        const bnc = -0.5;
+        const floor = window.innerHeight - 30;
 
-        function step() {
-            velY += gravity;
-            posX += velX;
-            posY += velY;
+        function animate() {
+            vy += grav;
+            px += vx;
+            py += vy;
 
-            if (posY >= ground) {
-                posY = ground;
-                velY *= bounce;
-                velX *= 0.7;
+            if (py >= floor) {
+                py = floor;
+                vy *= bnc;
+                vx *= 0.8;
             }
 
-            el.style.transform = `translate(${posX}px, ${posY}px) rotate(${posX * 0.5}deg)`;
+            el.style.left = px + 'px';
+            el.style.top = py + 'px';
+            el.style.transform = `rotate(${px}deg)`;
 
-            if (Math.abs(velY) > 0.5 || posY < ground - 5) {
-                requestAnimationFrame(step);
+            if (Math.abs(vy) > 0.5 || py < floor - 5) {
+                requestAnimationFrame(animate);
             } else {
                 setTimeout(() => {
                     el.classList.add('fade-out');
                     setTimeout(() => el.remove(), 400);
-                }, 800);
+                }, 1000);
             }
         }
-        requestAnimationFrame(step);
+        requestAnimationFrame(animate);
     }
 
     function updateUI() {
@@ -219,9 +219,8 @@
         const shop = document.getElementById('shop-content');
         shop.innerHTML = '';
 
-        buildings.forEach(b => {
-            // Vis bare ting man nesten har råd til
-            if (state.coins < b.cost * 0.5 && state.totalItemsBuilt < 2) return;
+        buildingTypes.forEach(b => {
+            if(b.unlock && state.totalSpent < b.unlock) return;
 
             const item = document.createElement('div');
             const canAfford = state.coins >= b.cost;
@@ -229,13 +228,34 @@
             item.innerHTML = `<span>${b.name}</span> <span>${b.cost}c</span>`;
             
             if(canAfford) {
-                item.onclick = () => buyBuilding(b);
+                item.onclick = (e) => {
+                    e.stopPropagation();
+                    buyBuilding(b);
+                };
             }
             shop.appendChild(item);
         });
     }
 
-    function buyBuilding(buildingData) {
-        let emptySlots = Array.from(document.querySelectorAll('.slot')).filter(s => s.innerHTML === '');
-        
-        // Hvis vi kjøper den siste
+    function buyBuilding(b) {
+        state.coins -= b.cost;
+        state.totalSpent += b.cost;
+        state.builtAssets.push(b.class);
+        state.billValue += 2;
+        b.cost = Math.floor(b.cost * 1.4);
+
+        // Sjekk om vi må utvide kvadratet
+        if(state.builtAssets.length > (state.gridSize * state.gridSize)) {
+            state.gridSize += 2;
+        }
+
+        renderGrid();
+        updateUI();
+    }
+
+    window.onresize = adjustZoom;
+    renderGrid();
+    updateUI();
+</script>
+</body>
+</html>
