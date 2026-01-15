@@ -2,7 +2,7 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Pixel City - Norwegian Neighborhood</title>
+    <title>Pixel City - Norsk Nabolag Fix</title>
     <style>
         :root {
             --ui-bg: #c6c6c6;
@@ -28,7 +28,7 @@
         #city-container {
             display: grid;
             gap: 2px;
-            background: #3d8c40; /* Grønnere plen-farge */
+            background: #3d8c40;
             padding: 15px;
             image-rendering: pixelated;
             transition: transform 0.6s ease;
@@ -39,49 +39,39 @@
         .slot {
             width: var(--block-size); height: var(--block-size);
             position: relative; box-sizing: border-box;
+            background: #4da33d;
         }
 
         /* ASSETS */
         .asset { position: absolute; width: 100%; height: 100%; animation: pop 0.3s steps(3); z-index: 2; }
         
         .house { 
-            background: #b22222; /* Klassisk rød hytte/hus */
-            border: 10px solid #800000; 
+            background: #b22222; border: 8px solid #800000; 
             width: 70%; height: 70%; top: 15%; left: 15%;
             box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
         } 
         
         .garden { background: #7cfc00; border: 4px dotted #55a600; width: 80%; height: 80%; top: 10%; left: 10%; }
-        
-        .tree { 
-            background: #2d5a24; border-radius: 50%; 
-            width: 30px; height: 30px; margin: 25px; 
-            box-shadow: 3px 3px 0 #1e3d18; 
-        }
+        .tree { background: #2d5a24; border-radius: 50%; width: 30px; height: 30px; margin: 25px; box-shadow: 3px 3px 0 #1e3d18; }
 
-        /* VEI-SYSTEM (Basert på bildet ditt) */
+        /* VEI-SYSTEM */
         .road { background: #444; z-index: 1 !important; }
-        .road::after {
-            content: ''; position: absolute;
-            background: white; opacity: 0.6;
-        }
-        .road-h::after { top: 48%; left: 10%; right: 10%; height: 4px; }
-        .road-v::after { left: 48%; top: 10%; bottom: 10%; width: 4px; }
+        .road::after { content: ''; position: absolute; background: white; opacity: 0.6; }
+        .road-h::after { top: 48%; left: 0; right: 0; height: 4px; border-top: 4px dashed #eee; }
+        .road-v::after { left: 48%; top: 0; bottom: 0; width: 4px; border-left: 4px dashed #eee; }
         
-        /* Svinger som faktisk ser ut som svinger */
-        .road-corner { border-radius: 0; }
-        .c-tl { border-top-left-radius: 30px; }
-        .c-tr { border-top-right-radius: 30px; }
-        .c-bl { border-bottom-left-radius: 30px; }
-        .c-br { border-bottom-right-radius: 30px; }
+        .c-tl { border-top-left-radius: 35px; }
+        .c-tr { border-top-right-radius: 35px; }
+        .c-bl { border-bottom-left-radius: 35px; }
+        .c-br { border-bottom-right-radius: 35px; }
 
-        /* PENGE-ANIMS (Forbedret stabilitet) */
+        /* PENGE-ANIMS */
         .money { position: absolute; z-index: 9999; pointer-events: none; }
-        .pixel-coin { width: 22px; height: 22px; background: #ffd700; border: 2px solid #b8860b; border-radius: 2px; }
+        .pixel-coin { width: 22px; height: 22px; background: #ffd700; border: 2px solid #b8860b; }
         
         /* UI */
         .ui-panel { position: absolute; background: var(--ui-bg); border: 4px solid var(--ui-border-light); border-right-color: var(--ui-border-dark); border-bottom-color: var(--ui-border-dark); padding: 12px; z-index: 10000; }
-        #money-ui { top: 20px; left: 20px; font-size: 24px; font-weight: bold; color: #2d5a24; }
+        #money-ui { top: 20px; left: 20px; font-size: 24px; font-weight: bold; }
         #shop-ui { top: 20px; right: 20px; width: 240px; max-height: 85vh; overflow-y: auto; }
         .shop-item { background: #999; border: 2px solid #eee; padding: 10px; margin: 6px 0; cursor: pointer; display: flex; justify-content: space-between; font-size: 12px; }
         .shop-item.disabled { opacity: 0.5; cursor: not-allowed; }
@@ -94,7 +84,7 @@
 
 <div id="money-ui" class="ui-panel">COINS: <span id="coin-count">0</span></div>
 <div id="shop-ui" class="ui-panel">
-    <div style="text-align:center; font-weight:bold; margin-bottom:10px;">BYGGEPLAN</div>
+    <div style="text-align:center; font-weight:bold; margin-bottom:10px;">BUTIKK</div>
     <div id="shop-content"></div>
 </div>
 <div id="game-viewport"><div id="city-container"></div></div>
@@ -106,16 +96,18 @@
         history: {}
     };
 
-    // LOGISK NABOLAGS-PLAN (Inspirert av bildet)
+    // NY OG FIKSET PLANLEGGING: Garanterer at det alltid er plass til noe
     function getPlannedType(i, size) {
         let x = i % size;
         let y = Math.floor(i / size);
 
-        // Vei-loop (Langs kanten av nabolaget)
+        // Veier snor seg som en ramme rundt nabolaget
         if (y === 0 || y === size - 1 || x === 0 || x === size - 1) return 'road';
 
-        // Avstand mellom hus (Annet hver felt er hage/tre)
+        // Bolig-soner med avstand (Annenhver blokk er hus)
         if ((x + y) % 2 === 0) return 'house';
+        
+        // Fyller resten med hage og trær
         return (x * y) % 3 === 0 ? 'garden' : 'tree';
     }
 
@@ -152,13 +144,13 @@
             let y = Math.floor(index / state.gridSize);
             let s = state.gridSize - 1;
 
-            // Avansert sving-deteksjon for hjørner
+            // Svinger (Hjørner)
             if (x === 0 && y === 0) asset.classList.add('c-tl');
             else if (x === s && y === 0) asset.classList.add('c-tr');
             else if (x === 0 && y === s) asset.classList.add('c-bl');
             else if (x === s && y === s) asset.classList.add('c-br');
             
-            // Striper
+            // Retning på striper
             if (y === 0 || y === s) asset.classList.add('road-h');
             else asset.classList.add('road-v');
         }
@@ -170,15 +162,14 @@
         container.style.transform = `scale(${scale})`;
     }
 
-    // STABIL PENGE-FYSIKK
+    // PENGE-REGN (6 mynter per klikk, ingen hakking)
     document.body.addEventListener('mousedown', (e) => {
         if(e.target.closest('.ui-panel')) return;
         
-        // Alltid 6 mynter per klikk for følelsen av rikdom
         for(let i=0; i<6; i++) {
-            setTimeout(() => spawnMoney(e.clientX, e.clientY), i * 30);
+            setTimeout(() => spawnMoney(e.clientX, e.clientY), i * 40);
         }
-        state.coins += 12;
+        state.coins += 15;
         updateUI();
     });
 
@@ -187,11 +178,66 @@
         el.className = 'money pixel-coin';
         document.body.appendChild(el);
         
-        let px = x + (Math.random() * 30 - 15);
+        let px = x + (Math.random() * 40 - 20);
         let py = y;
-        let vx = (Math.random() - 0.5) * 8;
-        let vy = -8 - Math.random() * 5;
+        let vx = (Math.random() - 0.5) * 10;
+        let vy = -10 - Math.random() * 5;
         
         function step() {
             vy += 0.5; px += vx; py += vy;
-            if (py >= window.innerHeight - 30
+            if (py >= window.innerHeight - 30) { py = window.innerHeight - 30; vy *= -0.4; vx *= 0.6; }
+            el.style.left = px + 'px'; el.style.top = py + 'px';
+            
+            if (Math.abs(vy) > 0.5 || py < window.innerHeight - 35) {
+                requestAnimationFrame(step);
+            } else {
+                el.classList.add('fade-out');
+                setTimeout(() => el.remove(), 500);
+            }
+        }
+        requestAnimationFrame(step);
+    }
+
+    function updateUI() {
+        document.getElementById('coin-count').innerText = state.coins;
+        const shop = document.getElementById('shop-content');
+        shop.innerHTML = '';
+
+        let anyAvailable = false;
+
+        buildings.forEach(b => {
+            let slots = [];
+            for(let i=0; i < state.gridSize**2; i++) {
+                if(getPlannedType(i, state.gridSize) === b.class && !state.history[i]) slots.push(i);
+            }
+            
+            if (slots.length > 0) anyAvailable = true;
+
+            let item = document.createElement('div');
+            let canBuy = state.coins >= b.cost && slots.length > 0;
+            item.className = `shop-item ${!canBuy ? 'disabled' : ''}`;
+            item.innerHTML = `<span>${b.name}${slots.length==0?' (Fullt)':''}</span> <span>${b.cost}c</span>`;
+            
+            if(canBuy) {
+                item.onclick = (e) => {
+                    e.stopPropagation();
+                    state.coins -= b.cost;
+                    state.history[slots[0]] = b.class;
+                    drawCity();
+                };
+            }
+            shop.appendChild(item);
+        });
+
+        // UTVID KARTET automatisk hvis alt i planen er bygget
+        if (!anyAvailable) {
+            state.gridSize += 2;
+            drawCity();
+        }
+    }
+
+    window.onresize = adjustZoom;
+    drawCity();
+</script>
+</body>
+</html>
